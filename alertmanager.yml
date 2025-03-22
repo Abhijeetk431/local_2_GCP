@@ -1,0 +1,10 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: "flask-service"
+
+receivers:
+  - name: "flask-service"
+    webhook_configs:
+      - url: "http://flask-service:5000/scale"

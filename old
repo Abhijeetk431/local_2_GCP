@@ -1,0 +1,71 @@
+# main.tf
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 6.23.0"
+    }
+  }
+}
+
+provider "google" {
+  credentials = file(var.credentials_file_path)
+  project     = var.project_id
+  region      = var.region
+}
+
+# Instance Template with External IP
+resource "google_compute_instance_template" "ig-template" {
+  name_prefix  = "auto-scaling-igt-"
+  machine_type = "e2-micro"
+  region       = var.region
+
+  disk {
+    auto_delete  = true
+    boot         = true
+    disk_size_gb = 10
+    source_image = "debian-cloud/debian-11"
+  }
+
+  network_interface {
+    access_config {}
+  }
+}
+
+# Managed Instance Group
+resource "google_compute_instance_group_manager" "mig" {
+  name               = "auto-scaling-mig"
+  base_instance_name = "vm"
+  zone               = "${var.region}-a"
+  target_size        = 0
+
+  version {
+    instance_template = google_compute_instance_template.ig-template.id
+  }
+
+  update_policy {
+    type                  = "PROACTIVE"
+    minimal_action        = "REPLACE"
+    max_surge_fixed       = 0
+    max_unavailable_fixed = 0
+    replacement_method    = "RECREATE"
+  }
+}
+
+# Autoscaler Configuration
+resource "google_compute_autoscaler" "autoscaler" {
+  name   = "mig-autoscaler"
+  zone   = "${var.region}-a"
+  target = google_compute_instance_group_manager.mig.id
+  depends_on = [google_compute_instance_group_manager.mig]
+
+  autoscaling_policy {
+    min_replicas = 0
+    max_replicas = 5
+    cooldown_period = 60
+
+    cpu_utilization {
+      target = 0.75
+    }
+  }
+}
