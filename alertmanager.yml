@@ -1,10 +1,15 @@
 global:
-  resolve_timeout: 5m
+  resolve_timeout: 1s
 
 route:
   receiver: "flask-service"
+  group_by: []          # No grouping
+  group_wait: 0s        # No delay for new alerts
+  group_interval: 1s    # Minimal delay for updates
+  repeat_interval: 1h   # Resend alerts every hour
 
 receivers:
   - name: "flask-service"
     webhook_configs:
       - url: "http://flask-service:5000/scale"
+        send_resolved: true
